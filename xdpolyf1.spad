@@ -12,6 +12,7 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
   XDP ==> XDistributedPolynomial(OVL, F)
   YDP ==> XDistributedPolynomial(OVL, G)
   NNI ==> NonNegativeInteger
+  RF  ==> RationalFunction F
 
   Exports ==> with
     factorizationEquations : XDP -> List G
@@ -25,6 +26,9 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
     import ListFunctions3(G,OFM,YDP)
     import ListFunctions2(G,List Symbol)
     import ListFunctions2(Equation G,Boolean)
+    import ListFunctions2(Equation G,G)
+    import ListFunctions2(G,Polynomial F)
+    import OutputPackage
 
     mapPoly(p:XDP):YDP ==
       if reductum p = 0 then
@@ -64,18 +68,21 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
       l := vars lp
       r := vars rp
       e := factorizationEquations p
-      for i in r repeat
-        --output("try: ",i::G::OutputForm)$OutputPackage
+      s0: List Equation G := []
+      -- look for first solution with one parameter
+      while empty? s0 for i in r repeat
+        --output("try: ",i::G::OutputForm)
         s := solve(e,concat(l, remove(i,r)))$SystemSolvePackage(F)
-        if #s > 0 then
-          v := map(x+->retractIfCan(lhs x)@Union(Symbol,"failed") case Symbol, s.1)
-          if #v>0 and reduce(_and$Boolean, v) then break
-      if #s = 0 or #s.1 = 0 then return [p]
-      bi:G := gcd(map(numer, select((x:G):Boolean+->(denominator x = i::G),
-        map(rhs,s.1)$ListFunctions2(Equation G,G)))$ListFunctions2(G,Polynomial F))::G
+        while empty? s0 for s1 in s repeat
+          v := map(x+->retractIfCan(lhs x)@Union(Symbol,"failed") case Symbol, s1)
+          if #v>0 and reduce(_and$Boolean, v) then s0:=s1
+      --output("s0:",s0::OutputForm)
+      if empty? s0 then return [p]
+      bis := select((x:G):Boolean+->(denominator x = i::G), map(rhs,s0))
+      bi:G := gcd(map(numer, bis))::G
       ss := equation(i::G,bi)
-      --output("param: ",ss::OutputForm)$OutputPackage
-      f := concat [factor mapPoly2XDP map((x:G):G+->eval(eval(x,s.1),ss)$RationalFunction(F),lp),
-                   factor mapPoly2XDP map((x:G):G+->eval(eval(x,s.1),ss)$RationalFunction(F),rp)]
+      --output("param: ",ss::OutputForm)
+      f := concat [factor mapPoly2XDP map((x:G):G+->eval(eval(x,s0),ss)$RF,lp),
+                   factor mapPoly2XDP map((x:G):G+->eval(eval(x,s0),ss)$RF,rp)]
       if reduce(_*$XDP,f) ~= p then error "factor failed"
       return f

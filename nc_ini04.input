@@ -1,3 +1,6 @@
+)cl co
+)co xdpolyf1
+
 ALPHABET := ['x, 'y, 'z];
 OVL := OrderedVariableList(ALPHABET)
 OFM := FreeMonoid(OVL)
@@ -8,3 +11,15 @@ YDP := XDPOLY(OVL, G)
 x:XDP := 'x::OFM;
 y:XDP := 'y::OFM;
 z:XDP := 'z::OFM;
+
+f5:XDP := 1 - 1*y*x - x*y + x*y^2*x
+factor f5
+p1:XDP := 3*x - 2*x*y*x - x*y*x*y*x
+factor p1
+q1:XDP := 9 - 9*x*y - x*y*x*y + x*y*x*y*x*y
+factor q1
+g:XDP := 1 - x*y*z*y*x*z
+factor g
+f10:=(1-x*y)*(2+y*x)*(3-y*z)*(2-z*y)*(1-x*z)
+--factor f10
+e10:=factorizationEquations f10; #e10
