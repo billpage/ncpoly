@@ -1,25 +1,67 @@
 )cl co
 )co xdpolyf1
 
-ALPHABET := ['x, 'y, 'z];
+ALPHABET := ['x, 'y, 'z, 'w, 'x1, 'x2, 'x3, 'x4, 'x5];
 OVL := OrderedVariableList(ALPHABET)
 OFM := FreeMonoid(OVL)
 F := Integer
-G := Fraction Polynomial F
 XDP := XDPOLY(OVL, F)
-YDP := XDPOLY(OVL, G)
 x:XDP := 'x::OFM;
 y:XDP := 'y::OFM;
 z:XDP := 'z::OFM;
+w:XDP := 'w::OFM;
+x1:XDP := 'x1::OFM;
+x2:XDP := 'x2::OFM;
+x3:XDP := 'x3::OFM;
+x4:XDP := 'x4::OFM;
+x5:XDP := 'x5::OFM;
 
-f5:XDP := 1 - 1*y*x - x*y + x*y^2*x
+
+)set message time on
+f5 := 1 - 1*y*x - x*y + x*y^2*x;
+degree f5
 factor f5
-p1:XDP := 3*x - 2*x*y*x - x*y*x*y*x
+
+p1 := 3*x - 2*x*y*x - x*y*x*y*x;
+degree p1
 factor p1
-q1:XDP := 9 - 9*x*y - x*y*x*y + x*y*x*y*x*y
+
+q1 := 9 - 9*x*y - x*y*x*y + x*y*x*y*x*y;
+degree q1
 factor q1
-g:XDP := 1 - x*y*z*y*x*z
+
+g := 1 - x*y*z*y*x*z;
+degree g
 factor g
-f10:=(1-x*y)*(2+y*x)*(3-y*z)*(2-z*y)*(1-x*z)
---factor f10
-e10:=factorizationEquations f10; #e10
+
+f10:=(1-x*y)*(2+y*x)*(3-y*z)*(2-z*y)*(1-x*z);
+degree f10
+factor f10
+
+f11a:=x*f10;
+degree f11a
+--factor f11a
+
+f11b:=f10*x;
+degree f11b
+--factor f11b
+
+f13:=f10*(3+z*x)*x;
+degree f13
+--factor f13
+
+f14:=f10*x*z;
+degree f14
+--factor f14
+
+f15:=f14*y;
+degree f15
+--factor f15
+
+f16:=f15*(1-x);
+degree f16
+--factor f16
+
+h2:=(1-x*y*z)*(1-z*y*x)*(3+y*x*z)*y;
+degree h2
+factor h2

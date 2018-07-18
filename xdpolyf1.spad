@@ -17,17 +17,22 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
   Exports ==> with
     factorizationEquations : XDP -> List G
     factor:XDP -> List XDP
-    mapPoly2XDP:YDP -> XDP
+    --mapPoly2XDP:YDP -> XDP
     leftPoly:XDP -> YDP
     rightPoly:XDP -> YDP
+    --prune:(List Symbol, List G) -> List Equation G
+    eval:(List G,List Equation G) -> List G
 
   Implementation ==> add
-    import ListFunctions2(OFM,List OFM)
-    import ListFunctions3(G,OFM,YDP)
+    import ListFunctions2(OFM, List OFM)
+    import ListFunctions3(G, OFM, YDP)
     import ListFunctions2(G,List Symbol)
     import ListFunctions2(Equation G,Boolean)
-    import ListFunctions2(Equation G,G)
-    import ListFunctions2(G,Polynomial F)
+    import ListFunctions2(Equation G, G)
+    import ListFunctions2(G, Polynomial F)
+    import ListFunctions2(Polynomial F, G)
+    import ListFunctions2(G, G)
+    import GroebnerPackage(F, IndexedExponents(Symbol), Polynomial F)
     import OutputPackage
 
     mapPoly(p:XDP):YDP ==
@@ -62,27 +67,78 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
       members set(concat map(x+->concat(variables numer x,variables denom x),
         coefficients p))$Set(Symbol)
 
+    eval(e:List G,z:List Equation G):List G ==
+      remove(0,map((x:G):G+->eval(x,z)$RF,e))
+
+    bisect(z:List Equation G, e:List G):List Equation G ==
+      if #z<2 then return z
+      z1 := first(z,#z quo 2)
+      if groebner(map(numer,eval(e,z)))~=[1] then return z1
+      z1 := last(z,#z quo 2)
+      if groebner(map(numer,eval(e,z)))~=[1] then return z1
+      if not empty?(z1 := bisect(first(z,#z quo 2),e)) then return z1
+      if not empty?(z1 := bisect(last(z,#z quo 2),e)) then return z1
+      -- A theorem showing that this can not happen would be nice!
+      output("Warning: bisection failed")
+      return []
+
+    constant(x:G):Boolean == retractIfCan(numer x)@Union(F,"failed") case F
+
+    explicit(x:Equation G):Boolean ==
+      retractIfCan(lhs x)@Union(Symbol,"failed") case Symbol
+
+    prune(l:List Symbol, e:List G):List Equation G ==
+      -- prune equations, a heuristic to solve for zeros
+      z: List Equation G := []
+      e1a := e
+      for i in l repeat
+        try_a: List Equation G := [coerce i = 0]
+        e1b:=eval(e1a, try_a) -- map((x:G):G+->eval(x,try_a)$RF,e1a)
+        -- if setting a variable to 0 makes some equations 0
+        if #e1b < #e1a then
+          -- but none of them to other non-zero constants
+          if empty? select(constant,e1b) then
+            e1a := e1b
+            z := concat(z,try_a)
+      return z
+
     factor(p:XDP):List XDP ==
       lp := leftPoly p
       rp := rightPoly p
       l := vars lp
       r := vars rp
       e := factorizationEquations p
+      -- find left factor variables that can (probably) be set to zero
+      lz := prune(l,e)
+      -- Check consistency: The heuristic sometimes yields too many zeros.
+      e1 := remove(0,map((x:G):G+->eval(x,lz)$RF,e)) --> eval(e,lz) -- compiler bug?
+      if groebner(map(numer,e1))=[1] then
+        lz := bisect(lz,e)
+        e1 := eval(e,lz)
+      -- solve for other variables
+      v := members set(concat map(variables, e1))$Set(Symbol)
       s0: List Equation G := []
-      -- look for first solution with one parameter
-      while empty? s0 for i in r repeat
-        --output("try: ",i::G::OutputForm)
-        s := solve(e,concat(l, remove(i,r)))$SystemSolvePackage(F)
+      -- look for first explicit solution with one free parameter
+      -- A theorem showing that we only need one parameter would be nice!
+      while empty? s0 for fp in v repeat
+        --output("try: ", fp::OutputForm)
+        s := solve(e1,remove(fp,v))$SystemSolvePackage(F)
         while empty? s0 for s1 in s repeat
-          v := map(x+->retractIfCan(lhs x)@Union(Symbol,"failed") case Symbol, s1)
-          if #v>0 and reduce(_and$Boolean, v) then s0:=s1
-      --output("s0:",s0::OutputForm)
-      if empty? s0 then return [p]
-      bis := select((x:G):Boolean+->(denominator x = i::G), map(rhs,s0))
-      bi:G := gcd(map(numer, bis))::G
-      ss := equation(i::G,bi)
-      --output("param: ",ss::OutputForm)
-      f := concat [factor mapPoly2XDP map((x:G):G+->eval(eval(x,s0),ss)$RF,lp),
-                   factor mapPoly2XDP map((x:G):G+->eval(eval(x,s0),ss)$RF,rp)]
-      if reduce(_*$XDP,f) ~= p then error "factor failed"
-      return f
+          m := map(explicit, s1)
+          if #s1>0 and reduce(_and$Boolean, m) then s0:=s1
+      --output("s0: ",s0::OutputForm)
+      if empty? s0 then
+        return [p]
+      sz := concat(lz,s0)
+
+      -- choose a parameter value to make G retractable to F
+      g := select((x:G):Boolean+->(denominator x = fp::G), map(rhs,s0))
+      f := equation(fp::G,gcd(map(numer, g))::G)
+
+      fl := mapPoly2XDP map((x:G):G+->eval(eval(x,sz),f)$RF,lp)
+      fr := mapPoly2XDP map((x:G):G+->eval(eval(x,sz),f)$RF,rp)
+      fs := concat [factor fl, factor fr]
+      if reduce(_*$XDP,fs) ~= p then
+        output("factors: ", fs::OutputForm)
+        error "factor failed"
+      return fs
