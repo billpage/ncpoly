@@ -1,6 +1,6 @@
 )abbrev package XDPOLYF1 XDistributedPolynomialFunctions1
 
-XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,GcdDomain)):Exports == Implementation where
+XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,GcdDomain,Comparable)):Exports == Implementation where
   ++ Factorization of non-commutative polynomials in the
   ++ free associative algebra XDPOLY using an ansatz
   ++ Idea: Daniel Smertnig, January 26, 2017
@@ -9,6 +9,7 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
   OVL ==> OrderedVariableList ALPHABET
   OFM ==> FreeMonoid OVL
   G   ==> Fraction Polynomial F
+  E   ==> Expression F
   XDP ==> XDistributedPolynomial(OVL, F)
   YDP ==> XDistributedPolynomial(OVL, G)
   NNI ==> NonNegativeInteger
@@ -17,10 +18,11 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
   Exports ==> with
     factorizationEquations : XDP -> List G
     factor:XDP -> List XDP
-    --mapPoly2XDP:YDP -> XDP
+    mapPoly2XDP:YDP -> XDP
+    mapPoly:XDP -> YDP
     leftPoly:XDP -> YDP
     rightPoly:XDP -> YDP
-    --prune:(List Symbol, List G) -> List Equation G
+    prune:(List Symbol, List G) -> List Equation G
     eval:(List G,List Equation G) -> List G
 
   Implementation ==> add
@@ -29,9 +31,11 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
     import ListFunctions2(G,List Symbol)
     import ListFunctions2(Equation G,Boolean)
     import ListFunctions2(Equation G, G)
+    import ListFunctions2(Equation E,E)
     import ListFunctions2(G, Polynomial F)
     import ListFunctions2(Polynomial F, G)
     import ListFunctions2(G, G)
+    import ListFunctions2(E,SparseMultivariatePolynomial(F,Kernel E))
     import GroebnerPackage(F, IndexedExponents(Symbol), Polynomial F)
     import OutputPackage
 
@@ -108,6 +112,7 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
       l := vars lp
       r := vars rp
       e := factorizationEquations p
+      if not empty? select(constant,e) then return [p]
       -- find left factor variables that can (probably) be set to zero
       lz := prune(l,e)
       -- Check consistency: The heuristic sometimes yields too many zeros.
@@ -115,28 +120,50 @@ XDistributedPolynomialFunctions1(ALPHABET:List Symbol, F:Join(IntegralDomain,Gcd
       if groebner(map(numer,e1))=[1] then
         lz := bisect(lz,e)
         e1 := eval(e,lz)
+      if groebner(map(numer,e1))=[1] then return [p]
       -- solve for other variables
       v := members set(concat map(variables, e1))$Set(Symbol)
-      s0: List Equation G := []
       -- look for first explicit solution with one free parameter
       -- A theorem showing that we only need one parameter would be nice!
-      while empty? s0 for fp in v repeat
-        --output("try: ", fp::OutputForm)
-        s := solve(e1,remove(fp,v))$SystemSolvePackage(F)
-        while empty? s0 for s1 in s repeat
-          m := map(explicit, s1)
-          if #s1>0 and reduce(_and$Boolean, m) then s0:=s1
-      --output("s0: ",s0::OutputForm)
-      if empty? s0 then
-        return [p]
-      sz := concat(lz,s0)
+      if F has PolynomialFactorizationExplicit and F has CharacteristicZero and F has RadicalCategory then
+        -- Can we use just the first variable?
+        fp := v.1
+        se := radicalSolve(e1,remove(fp,v))$RadicalSolvePackage(F)
+        --output("se: ", se::OutputForm)
+        if empty? se then return [p]
+        -- Can we take just the first solution?
+        se0 := se.1
+        if empty? se0 then return [p]
+        e0 := map((x:Equation G):Equation E+->equation(lhs(x)::E, rhs(x)::E),
+                  lz)$ListFunctions2(Equation G,Equation E)
+        sez := concat(e0,se0)
+        ge := select((x:E):Boolean+->(denom x = numer(coerce(fp)@E)), map(rhs,se0))
+        ge1:E := coerce(gcd(map(numer, ge)))
+        fe:Equation E := equation(coerce(fp)@E,ge1)
+        fl := mapPoly2XDP map((x:G):G+->retract eval(eval(coerce(x)@E,sez)$E,fe)$E,lp)
+        fr := mapPoly2XDP map((x:G):G+->retract eval(eval(coerce(x)@E,sez)$E,fe)$E,rp)
 
-      -- choose a parameter value to make G retractable to F
-      g := select((x:G):Boolean+->(denominator x = fp::G), map(rhs,s0))
-      f := equation(fp::G,gcd(map(numer, g))::G)
+      else
+        s0: List Equation G := []
+        while empty? s0 for fp in v repeat
+          --output("try: ", fp::OutputForm)
+          s := solve(e1,remove(fp,v))$SystemSolvePackage(F)
+          while empty? s0 for s1 in s repeat
+            m := map(explicit, s1)
+            if #s1>0 and reduce(_and$Boolean, m) then s0:=s1
+        --output("s0: ",s0::OutputForm)
 
-      fl := mapPoly2XDP map((x:G):G+->eval(eval(x,sz),f)$RF,lp)
-      fr := mapPoly2XDP map((x:G):G+->eval(eval(x,sz),f)$RF,rp)
+        if empty? s0 then
+          return [p]
+        sz := concat(lz,s0)
+
+        -- choose a parameter value to make G retractable to F
+        g := select((x:G):Boolean+->(denominator x = fp::G), map(rhs,s0))
+        f := equation(fp::G,gcd(map(numer, g))::G)
+
+        fl := mapPoly2XDP map((x:G):G+->eval(eval(x,sz),f)$RF,lp)
+        fr := mapPoly2XDP map((x:G):G+->eval(eval(x,sz),f)$RF,rp)
+
       fs := concat [factor fl, factor fr]
       if reduce(_*$XDP,fs) ~= p then
         output("factors: ", fs::OutputForm)
