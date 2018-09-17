@@ -1,0 +1,70 @@
+)compile linpen.spad
+)compile fdalg.spad
+
+
+ALPHABET := ['x, 'y, 'z, 'w, 'x1, 'x2, 'x3, 'x4, 'x5];
+OVL := OrderedVariableList(ALPHABET)
+OFM := FreeMonoid(OVL)
+K := Fraction(Integer)
+XDP := XDPOLY(OVL, K)
+FDA := FDALG(OVL, K)
+
+x:FDA := 'x::OFM;
+y:FDA := 'y::OFM;
+z:FDA := 'z::OFM;
+w:FDA := 'w::OFM;
+x1:FDA := 'x1::OFM;
+x2:FDA := 'x2::OFM;
+x3:FDA := 'x3::OFM;
+x4:FDA := 'x4::OFM;
+x5:FDA := 'x5::OFM;
+
+
+)set message time on
+f5 := 1 - 1*y*x - x*y + x*y^2*x;
+degree(f5::XDP)
+map(x+->x::XDP,factor f5)
+
+p1 := 3*x - 2*x*y*x - x*y*x*y*x;
+degree(p1::XDP)
+map(x+->x::XDP,factor p1)
+
+q1 := 9 - 9*x*y - x*y*x*y + x*y*x*y*x*y;
+degree(q1::XDP)
+map(x+->x::XDP,factor q1)
+
+g := 1 - x*y*z*y*x*z;
+degree(g::XDP)
+map(x+->x::XDP,factor g)
+
+f10:=(1-x*y)*(2+y*x)*(3-y*z)*(2-z*y)*(1-x*z);
+degree(f10::XDP)
+map(x+->x::XDP,factor f10)
+
+f11a:=x*f10;
+degree(f11a::XDP)
+map(x+->x::XDP,factor f11a)
+
+f11b:=f10*x;
+degree(f11b::XDP)
+map(x+->x::XDP,factor f11b)
+
+f13:=f10*(3+z*x)*x;
+degree(f13::XDP)
+map(x+->x::XDP,factor f13)
+
+f14:=f10*x*z;
+degree(f14::XDP)
+map(x+->x::XDP,factor f14)
+
+f15:=f14*y;
+degree(f15::XDP)
+map(x+->x::XDP,factor f15)
+
+f16:=f15*(1-x);
+degree(f16::XDP)
+map(x+->x::XDP,factor f16)
+
+h2:=(1-x*y*z)*(1-z*y*x)*(3+y*x*z)*y;
+degree(h2::XDP)
+map(x+->x::XDP,factor h2)
